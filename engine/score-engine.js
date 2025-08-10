@@ -260,7 +260,7 @@ async function getDeFiScore(address) {
 }
 
 // Main scoring function
-async function calculateScore(address) {
+async function calculateScore(address, customWeights) {
   const txScore = await getTransactionScore(address);
   const stakingScore = await getStakingScore(address);
   const defiScore = await getDeFiScore(address);
@@ -272,18 +272,19 @@ async function calculateScore(address) {
   const defiPositionsScore = await getDefiPositionsScore(address);
   const contractInteractionsScore = await getContractInteractionsScore(address);
 
+  const weights = customWeights || WEIGHTS;
   // Weighted sum
   const score = Math.round(
-    txScore * WEIGHTS.transactions +
-    stakingScore * WEIGHTS.staking +
-    defiScore * WEIGHTS.defi +
-    governanceScore * WEIGHTS.governance +
-    riskScore * WEIGHTS.risk +
-    dexScore * WEIGHTS.dex +
-    tokenTransfersScore * WEIGHTS.tokenTransfers +
-    nftActivityScore * WEIGHTS.nftActivity +
-    defiPositionsScore * WEIGHTS.defiPositions +
-    contractInteractionsScore * WEIGHTS.contractInteractions
+    txScore * weights.transactions +
+    stakingScore * weights.staking +
+    defiScore * weights.defi +
+    governanceScore * weights.governance +
+    riskScore * weights.risk +
+    dexScore * weights.dex +
+    tokenTransfersScore * weights.tokenTransfers +
+    nftActivityScore * weights.nftActivity +
+    defiPositionsScore * weights.defiPositions +
+    contractInteractionsScore * weights.contractInteractions
   );
 
   // Details for transparency
@@ -298,7 +299,7 @@ async function calculateScore(address) {
     nftActivityScore,
     defiPositionsScore,
     contractInteractionsScore,
-    weights: WEIGHTS,
+    weights,
   });
 
   return { score, details };
