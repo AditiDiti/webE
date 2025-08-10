@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "dependencies": {
     "ethers": "^6.15.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "node-fetch": "^2.7.0"
   }
 }

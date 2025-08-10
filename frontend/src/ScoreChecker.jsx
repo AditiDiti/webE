@@ -91,14 +91,49 @@ function ScoreChecker() {
             Score: {score}
           </h2>
           <div style={{ fontSize: "1rem", color: "#334155", marginBottom: 8 }}>Details:</div>
-          <pre style={{
-            background: "#e0e7ff",
-            padding: 16,
-            borderRadius: 8,
-            fontSize: "0.95rem",
-            color: "#1e293b",
-            overflowX: "auto"
-          }}>{details}</pre>
+          {details && (() => {
+            let parsed;
+            try {
+              parsed = JSON.parse(details);
+            } catch {
+              return <pre>{details}</pre>;
+            }
+            const weights = parsed.weights || {};
+            // Map frontend keys to backend weight keys
+            const keyMap = {
+              txScore: 'transactions',
+              stakingScore: 'staking',
+              defiScore: 'defi',
+              governanceScore: 'governance',
+              riskScore: 'risk',
+              dexScore: 'dex',
+              tokenTransfersScore: 'tokenTransfers',
+              nftActivityScore: 'nftActivity',
+              defiPositionsScore: 'defiPositions',
+              contractInteractionsScore: 'contractInteractions',
+            };
+            const rows = Object.entries(parsed)
+              .filter(([k]) => k !== 'weights')
+              .map(([k, v]) => (
+                <tr key={k}>
+                  <td style={{ padding: '6px 12px', fontWeight: 500, color: '#6366f1', textTransform: 'capitalize' }}>{k.replace(/Score$/, '').replace(/([A-Z])/g, ' $1').trim()}</td>
+                  <td style={{ padding: '6px 12px', color: '#334155' }}>{v}</td>
+                  <td style={{ padding: '6px 12px', color: '#64748b' }}>{weights[keyMap[k]] !== undefined ? weights[keyMap[k]] : '-'}</td>
+                </tr>
+              ));
+            return (
+              <table style={{ width: '100%', background: '#e0e7ff', borderRadius: 8, marginTop: 8, fontSize: '0.98rem', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#6366f1', color: 'white' }}>
+                    <th style={{ padding: '8px 12px', borderRadius: '8px 0 0 0', textAlign: 'left' }}>Factor</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left' }}>Value</th>
+                    <th style={{ padding: '8px 12px', borderRadius: '0 8px 0 0', textAlign: 'left' }}>Weight</th>
+                  </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+              </table>
+            );
+          })()}
         </div>
       )}
     </div>
