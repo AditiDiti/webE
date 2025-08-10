@@ -53,6 +53,10 @@ function ScoreChecker() {
     defiPositions: 0.09,
     contractInteractions: 0.05,
   };
+
+  function handleResetWeights() {
+    setWeights(defaultWeights);
+  }
   const [weights, setWeights] = useState(defaultWeights);
 
   function handleWeightChange(key, value) {
@@ -123,21 +127,42 @@ function ScoreChecker() {
           }}
         />
         <div style={{ marginBottom: 8 }}>
-          <strong>Adjust Weights (0-1):</strong>
-          {Object.entries(weights).map(([key, value]) => (
-            <div key={key} style={{ margin: "4px 0" }}>
-              <label style={{ marginRight: 8, textTransform: "capitalize" }}>{key}:</label>
-              <input
-                type="number"
-                min="0"
-                max="1"
-                step="0.01"
-                value={value}
-                onChange={e => handleWeightChange(key, e.target.value)}
-                style={{ width: 60, padding: "2px 6px", borderRadius: 4, border: "1px solid #cbd5e1" }}
-              />
-            </div>
-          ))}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <strong>Adjust Weights (0-1):</strong>
+            <button
+              type="button"
+              onClick={handleResetWeights}
+              style={{
+                padding: '6px 18px',
+                background: '#6366f1',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontSize: '1rem',
+                boxShadow: '0 2px 8px rgba(99,102,241,0.08)'
+              }}
+            >
+              Reset to Default
+            </button>
+          </div>
+          <div style={{ marginTop: 4 }}>
+            {Object.entries(weights).map(([key, value]) => (
+              <div key={key} style={{ margin: "6px 0", display: 'flex', alignItems: 'center' }}>
+                <label style={{ marginRight: 8, textTransform: "capitalize", minWidth: 120 }}>{key}:</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={value}
+                  onChange={e => handleWeightChange(key, e.target.value)}
+                  style={{ width: 60, padding: "2px 6px", borderRadius: 4, border: "1px solid #cbd5e1" }}
+                />
+              </div>
+            ))}
+          </div>
         </div>
         <button
           onClick={fetchScore}
