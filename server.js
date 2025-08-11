@@ -8,6 +8,9 @@ const scoreApi = require(path.join(__dirname, "api", "score"));
 const app = express();
 const PORT = 3001;
 
+// Add middleware to parse JSON bodies
+app.use(express.json());
+
 // API route
 app.use("/api", scoreApi);
 

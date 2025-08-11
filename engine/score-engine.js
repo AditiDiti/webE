@@ -18,7 +18,32 @@ const WEIGHTS = {
   nftActivity: 0.11,
   defiPositions: 0.09,
   contractInteractions: 0.05,
+  allowlist: 0.4,
+  denylist: 0.5,
+  counterpartyDiversity: 0.2,
+  txPatternMatch: 0.2
 };
+
+// Threat Intel Reference Lists
+const fs = require('fs');
+
+function loadLists() {
+  try {
+    // Fix the path - lists.json is in the parent directory
+    const lists = JSON.parse(fs.readFileSync(require('path').resolve(__dirname, '../lists.json'), 'utf8'));
+    return {
+      allowlist: lists.allowlist || [],
+      denylist: lists.denylist || []
+    };
+  } catch (e) {
+    console.error('Error loading lists:', e.message);
+    // fallback to empty lists if file not found or invalid
+    return {
+      allowlist: [],
+      denylist: []
+    };
+  }
+}
 // Use Covalent API for token transfers (ERC20, ERC721, ERC1155)
 async function getTokenTransfersScore(address) {
   const url = `https://api.covalenthq.com/v1/1/address/${address}/transfers_v2/?key=${COVALENT_API_KEY}`;
@@ -260,7 +285,60 @@ async function getDeFiScore(address) {
 }
 
 // Main scoring function
+function getThreatIntelScore(address) {
+  const lists = loadLists();
+  const addr = address.toLowerCase();
+  let score = 0;
+  if (lists.allowlist.includes(addr)) score += 40;
+  if (lists.denylist.includes(addr)) score -= 50;
+  return score;
+}
+async function getCounterpartyDiversityScore(address) {
+  // Use Covalent API to fetch transactions
+  const url = `https://api.covalenthq.com/v1/1/address/${address}/transactions_v2/?key=${COVALENT_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  const txs = data.data.items || [];
+  const counterparties = new Set();
+  txs.forEach(tx => {
+    if (tx.from_address && tx.from_address.toLowerCase() !== address.toLowerCase()) {
+      counterparties.add(tx.from_address.toLowerCase());
+    }
+    if (tx.to_address && tx.to_address.toLowerCase() !== address.toLowerCase()) {
+      counterparties.add(tx.to_address.toLowerCase());
+    }
+  });
+  const uniqueCount = counterparties.size;
+  // Score = min((unique_count / 50), 1.0) * 20
+  let score = Math.min((uniqueCount / 50), 1.0) * 20;
+  return Math.round(score);
+}
+
+async function getTxPatternMatchScore(address) {
+  // Use Covalent API to fetch transactions
+  const url = `https://api.covalenthq.com/v1/1/address/${address}/transactions_v2/?key=${COVALENT_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  const txs = data.data.items || [];
+  // Known pattern: 32 ETH (Beacon deposit)
+  const patternValue = 32;
+  // Only inbound transactions (to this address)
+  const inboundTxs = txs.filter(tx => tx.to_address && tx.to_address.toLowerCase() === address.toLowerCase());
+  if (inboundTxs.length === 0) return 0;
+  // Count how many match the pattern
+  const matches = inboundTxs.filter(tx => {
+    // tx.value is in wei, convert to ETH
+    const ethValue = Number(tx.value) / 1e18;
+    // Allow small rounding error
+    return Math.abs(ethValue - patternValue) < 0.01;
+  });
+  const matchRatio = matches.length / inboundTxs.length;
+  // If >70% match, add +20 points
+  return matchRatio > 0.7 ? 20 : 0;
+}
+
 async function calculateScore(address, customWeights) {
+  const threatIntelScore = getThreatIntelScore(address);
   const txScore = await getTransactionScore(address);
   const stakingScore = await getStakingScore(address);
   const defiScore = await getDeFiScore(address);
@@ -271,9 +349,39 @@ async function calculateScore(address, customWeights) {
   const nftActivityScore = await getNftActivityScore(address);
   const defiPositionsScore = await getDefiPositionsScore(address);
   const contractInteractionsScore = await getContractInteractionsScore(address);
+  const counterpartyDiversityScore = await getCounterpartyDiversityScore(address);
+  const txPatternMatchScore = await getTxPatternMatchScore(address);
 
   const weights = customWeights || WEIGHTS;
   // Weighted sum
+  // If address is in denylist, apply full penalty and override other scores
+  if (threatIntelScore < 0) {
+    const lists = loadLists();
+    const allowlistScore = lists.allowlist.includes(address.toLowerCase()) ? 40 : 0;
+    const denylistScore = lists.denylist.includes(address.toLowerCase()) ? -50 : 0;
+    return {
+      score: -50,
+      details: JSON.stringify({
+        txScore,
+        stakingScore,
+        defiScore,
+        governanceScore,
+        riskScore,
+        dexScore,
+        tokenTransfersScore,
+        nftActivityScore,
+        defiPositionsScore,
+        contractInteractionsScore,
+        counterpartyDiversityScore,
+        txPatternMatchScore,
+        allowlistScore,
+        denylistScore,
+        threatIntelScore,
+        weights,
+        denylistHit: true
+      })
+    };
+  }
   const score = Math.round(
     txScore * weights.transactions +
     stakingScore * weights.staking +
@@ -284,10 +392,16 @@ async function calculateScore(address, customWeights) {
     tokenTransfersScore * weights.tokenTransfers +
     nftActivityScore * weights.nftActivity +
     defiPositionsScore * weights.defiPositions +
-    contractInteractionsScore * weights.contractInteractions
+    contractInteractionsScore * weights.contractInteractions +
+    counterpartyDiversityScore * (weights.counterpartyDiversity || 0) +
+    txPatternMatchScore * (weights.txPatternMatch || 0) +
+    (threatIntelScore > 0 ? threatIntelScore * (weights.allowlist || 0) : 0)
   );
 
   // Details for transparency
+  const lists = loadLists();
+  const allowlistScore = lists.allowlist.includes(address.toLowerCase()) ? 40 : 0;
+  const denylistScore = lists.denylist.includes(address.toLowerCase()) ? -50 : 0;
   const details = JSON.stringify({
     txScore,
     stakingScore,
@@ -299,6 +413,11 @@ async function calculateScore(address, customWeights) {
     nftActivityScore,
     defiPositionsScore,
     contractInteractionsScore,
+    counterpartyDiversityScore,
+    txPatternMatchScore,
+    allowlistScore,
+    denylistScore,
+    threatIntelScore,
     weights,
   });
 

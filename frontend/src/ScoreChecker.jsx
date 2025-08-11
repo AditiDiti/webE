@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { utils as XLSXUtils, writeFile as XLSXWriteFile } from "xlsx";
 
@@ -22,6 +21,10 @@ function ScoreChecker() {
       nftActivityScore: 'nftActivity',
       defiPositionsScore: 'defiPositions',
       contractInteractionsScore: 'contractInteractions',
+      allowlistScore: 'allowlist',
+      denylistScore: 'denylist',
+      counterpartyDiversityScore: 'counterpartyDiversity',
+      txPatternMatchScore: 'txPatternMatch'
     };
     const rows = Object.entries(keyMap).map(([frontendKey, backendKey]) => {
       const raw = parsed[frontendKey] || 0;
@@ -52,6 +55,10 @@ function ScoreChecker() {
     nftActivity: 0.11,
     defiPositions: 0.09,
     contractInteractions: 0.05,
+    allowlist: 0.4, // weight for allowlist bonus (default: 40 * 0.4 = 16)
+    denylist: 0.5,  // weight for denylist penalty (default: -50 * 0.5 = -25)
+    counterpartyDiversity: 0.2, // weight for counterparty diversity (default: 20 * 0.2 = 4)
+    txPatternMatch: 0.2 // weight for transaction pattern matching (default: 20 * 0.2 = 4)
   };
 
   function handleResetWeights() {
@@ -150,7 +157,13 @@ function ScoreChecker() {
           <div style={{ marginTop: 4 }}>
             {Object.entries(weights).map(([key, value]) => (
               <div key={key} style={{ margin: "6px 0", display: 'flex', alignItems: 'center' }}>
-                <label style={{ marginRight: 8, textTransform: "capitalize", minWidth: 120 }}>{key}:</label>
+                <label style={{ marginRight: 8, textTransform: "capitalize", minWidth: 160 }}>
+                  {key === 'allowlist' ? 'Allowlist Bonus' :
+                   key === 'denylist' ? 'Denylist Penalty' :
+                   key === 'counterpartyDiversity' ? 'Counterparty Diversity' :
+                   key === 'txPatternMatch' ? 'Tx Pattern Match' :
+                   key}
+                :</label>
                 <input
                   type="number"
                   min="0"
@@ -202,6 +215,10 @@ function ScoreChecker() {
           nftActivityScore: 'nftActivity',
           defiPositionsScore: 'defiPositions',
           contractInteractionsScore: 'contractInteractions',
+          allowlistScore: 'allowlist',
+          denylistScore: 'denylist',
+          counterpartyDiversityScore: 'counterpartyDiversity',
+          txPatternMatchScore: 'txPatternMatch'
         };
         // Only show table if at least one factor value exists
         const hasValues = Object.keys(keyMap).some(k => parsed[k] !== undefined);
