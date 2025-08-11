@@ -9,6 +9,15 @@ webE is a protocol that aggregates on-chain user behavior—such as transaction 
 - **Backend API**: Serves the score calculation via an Express API.
 - **Frontend**: React app lets users check their crypto credit score by entering an Ethereum address.
 
+<h2>Demo</h2>
+<p align="center">
+  <img src="img1.jpg" alt="Demo Image 1" height="300" style="margin-right: 10px;"/>
+  <img src="img2.jpg" alt="Demo Image 2" height="300"/>
+</p>
+
+
+
+
 ## Features
 - **Comprehensive Scoring**: 13 different on-chain behavior metrics
 - **Real-time Data**: Uses Covalent API for live blockchain data
